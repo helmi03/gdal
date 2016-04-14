@@ -21,4 +21,9 @@ GDALProgressFunc goGDALProgressFuncProxyB() {
 	return goGDALProgressFuncProxyB_;
 }
 
-
+int am_i_null(int* pointer) {
+  if (NULL == pointer) {
+    return -1;
+  }
+  return *pointer;
+}

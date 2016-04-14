@@ -1012,6 +1012,16 @@ func (feature Feature) Geometry() Geometry {
 	return Geometry{geom}
 }
 
+// Since gdal throw error when geometry null
+func (feature Feature) GeometryNotNil() (Geometry, bool) {
+	geom := C.OGR_F_GetGeometryRef(feature.cval)
+	x := C.am_i_null((*C.int)(unsafe.Pointer(&geom)))
+	if x == 0 {
+		return Geometry{geom}, false
+	}
+	return Geometry{geom}, true
+}
+
 // Fetch geometry of this feature and assume ownership
 func (feature Feature) StealGeometry() Geometry {
 	geom := C.OGR_F_StealGeometry(feature.cval)

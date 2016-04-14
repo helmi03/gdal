@@ -14,6 +14,8 @@
 // transform GDALProgressFunc to go func
 GDALProgressFunc goGDALProgressFuncProxyB();
 
+int am_i_null(int* pointer);
+
 #endif // GO_GDAL_H_
 
 
