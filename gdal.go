@@ -115,6 +115,26 @@ func (dataType DataType) Union(dataTypeB DataType) DataType {
 	)
 }
 
+//Safe array conversion
+func IntSliceToCInt(data []int) []C.int {
+	sliceSz := len(data)
+	result := make([]C.int, sliceSz)
+	for i := 0; i < sliceSz; i++ {
+		result[i] = C.int(data[i])
+	}
+	return result
+}
+
+//Safe array conversion
+func CIntSliceToInt(data []C.int) []int {
+	sliceSz := len(data)
+	result := make([]int, sliceSz)
+	for i := 0; i < sliceSz; i++ {
+		result[i] = int(data[i])
+	}
+	return result
+}
+
 // status of the asynchronous stream
 type AsyncStatusType int
 
@@ -529,7 +549,6 @@ func (driver Driver) LongName() string {
 // Unimplemented: DeinitGCPs
 // Unimplemented: DuplicateGCPs
 // Unimplemented: GCPsToGeoTransform
-// Unimplemented: InvGeoTransform
 // Unimplemented: ApplyGeoTransform
 
 /* ==================================================================== */
@@ -718,7 +737,7 @@ func (dataset Dataset) AutoCreateWarpedVRT(srcWKT, dstWKT string, resampleAlg Re
 	defer C.free(unsafe.Pointer(c_dstWKT))
 	/*
 
-	*/
+	 */
 	h := C.GDALAutoCreateWarpedVRT(dataset.cval, c_srcWKT, c_dstWKT, C.GDALResampleAlg(resampleAlg), 0.0, nil)
 	d := Dataset{h}
 	if h == nil {
@@ -780,7 +799,7 @@ func (dataset Dataset) IO(
 		C.int(bufXSize), C.int(bufYSize),
 		C.GDALDataType(dataType),
 		C.int(bandCount),
-		(*C.int)(unsafe.Pointer(&bandMap[0])),
+		(*C.int)(unsafe.Pointer(&IntSliceToCInt(bandMap)[0])),
 		C.int(pixelSpace), C.int(lineSpace), C.int(bandSpace),
 	).Err()
 }
@@ -808,7 +827,7 @@ func (dataset Dataset) AdviseRead(
 		C.int(bufXSize), C.int(bufYSize),
 		C.GDALDataType(dataType),
 		C.int(bandCount),
-		(*C.int)(unsafe.Pointer(&bandMap[0])),
+		(*C.int)(unsafe.Pointer(&IntSliceToCInt(bandMap)[0])),
 		(**C.char)(unsafe.Pointer(&cOptions[0])),
 	).Err()
 }
@@ -840,6 +859,18 @@ func (dataset Dataset) SetGeoTransform(transform [6]float64) error {
 		dataset.cval,
 		(*C.double)(unsafe.Pointer(&transform[0])),
 	).Err()
+}
+
+// Return the inverted transform
+func (dataset Dataset) InvGeoTransform() [6]float64 {
+	return InvGeoTransform(dataset.GeoTransform())
+}
+
+// Invert the supplied transform
+func InvGeoTransform(transform [6]float64) [6]float64 {
+	var result [6]float64
+	C.GDALInvGeoTransform((*C.double)(unsafe.Pointer(&transform[0])), (*C.double)(unsafe.Pointer(&result[0])))
+	return result
 }
 
 // Get number of GCPs
@@ -892,9 +923,9 @@ func (dataset Dataset) BuildOverviews(
 		dataset.cval,
 		cResampling,
 		C.int(nOverviews),
-		(*C.int)(unsafe.Pointer(&overviewList[0])),
+		(*C.int)(unsafe.Pointer(&IntSliceToCInt(overviewList)[0])),
 		C.int(nBands),
-		(*C.int)(unsafe.Pointer(&bandList[0])),
+		(*C.int)(unsafe.Pointer(&IntSliceToCInt(bandList)[0])),
 		C.goGDALProgressFuncProxyB(),
 		unsafe.Pointer(arg),
 	).Err()
@@ -1281,7 +1312,7 @@ func (rb RasterBand) Histogram(
 		progress, data,
 	}
 
-	histogram := make([]int, buckets)
+	histogram := make([]C.int, buckets)
 
 	if err := C.GDALGetRasterHistogram(
 		rb.cval,
@@ -1296,7 +1327,7 @@ func (rb RasterBand) Histogram(
 	).Err(); err != nil {
 		return nil, err
 	} else {
-		return histogram, nil
+		return CIntSliceToInt(histogram), nil
 	}
 }
 
