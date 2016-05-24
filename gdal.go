@@ -335,6 +335,7 @@ const (
 	DMD_EXTENSION          = string(C.GDAL_DMD_EXTENSION)
 	DMD_CREATIONOPTIONLIST = string(C.GDAL_DMD_CREATIONOPTIONLIST)
 	DMD_CREATIONDATATYPES  = string(C.GDAL_DMD_CREATIONDATATYPES)
+	GDAL_OF_VECTOR         = 0x04
 
 	DCAP_CREATE     = string(C.GDAL_DCAP_CREATE)
 	DCAP_CREATECOPY = string(C.GDAL_DCAP_CREATECOPY)
@@ -439,6 +440,17 @@ func Open(filename string, access Access) (Dataset, error) {
 	defer C.free(unsafe.Pointer(cFilename))
 
 	dataset := C.GDALOpen(cFilename, C.GDALAccess(access))
+	if dataset == nil {
+		return Dataset{nil}, fmt.Errorf("Error: dataset '%s' open error", filename)
+	}
+	return Dataset{dataset}, nil
+}
+
+func OpenEx(filename string) (Dataset, error) {
+	cFilename := C.CString(filename)
+	defer C.free(unsafe.Pointer(cFilename))
+
+	dataset := C.GDALOpenEx(cFilename, GDAL_OF_VECTOR, nil, nil, nil)
 	if dataset == nil {
 		return Dataset{nil}, fmt.Errorf("Error: dataset '%s' open error", filename)
 	}
@@ -939,6 +951,16 @@ func (dataset Dataset) Access() Access {
 	return Access(accessVal)
 }
 
+func (dataset Dataset) LayerByIndex(index int) Layer {
+	layer := C.OGR_DS_GetLayer(dataset.cval, C.int(index))
+	return Layer{layer}
+}
+
+func (dataset Dataset) LayerCount() int {
+	count := C.OGR_DS_GetLayerCount(dataset.cval)
+	return int(count)
+}
+
 // Write all write cached data to disk
 func (dataset Dataset) FlushCache() {
 	C.GDALFlushCache(dataset.cval)
@@ -1314,12 +1336,12 @@ func (rb RasterBand) Histogram(
 
 	histogram := make([]C.int, buckets)
 
-	if err := C.GDALGetRasterHistogram(
+	if err := C.GDALGetRasterHistogramEx(
 		rb.cval,
 		C.double(min),
 		C.double(max),
 		C.int(buckets),
-		(*C.int)(unsafe.Pointer(&histogram[0])),
+		(*C.GUIntBig)(unsafe.Pointer(&histogram[0])),
 		C.int(includeOutOfRange),
 		C.int(approxOK),
 		C.goGDALProgressFuncProxyB(),
@@ -1341,9 +1363,9 @@ func (rb RasterBand) DefaultHistogram(
 		progress, data,
 	}
 
-	var cHistogram *C.int
+	var cHistogram *C.GUIntBig
 
-	err = C.GDALGetDefaultHistogram(
+	err = C.GDALGetDefaultHistogramEx(
 		rb.cval,
 		(*C.double)(&min),
 		(*C.double)(&max),
