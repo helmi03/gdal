@@ -952,12 +952,12 @@ func (dataset Dataset) Access() Access {
 }
 
 func (dataset Dataset) LayerByIndex(index int) Layer {
-	layer := C.OGR_DS_GetLayer(dataset.cval, C.int(index))
+	layer := C.GDALDatasetGetLayer(dataset.cval, C.int(index))
 	return Layer{layer}
 }
 
 func (dataset Dataset) LayerCount() int {
-	count := C.OGR_DS_GetLayerCount(dataset.cval)
+	count := C.GDALDatasetGetLayerCount(dataset.cval)
 	return int(count)
 }
 
